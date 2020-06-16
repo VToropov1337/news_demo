@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -77,13 +78,16 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("Internal server error"))
 		return
 	}
-	fmt.Println("---->", u)
-	fmt.Println("****", u.Query())
+
 	params := u.Query()
 	searchKey := params.Get("q")
-	// if searchKey == "" {
-	// 	searchKey = "today"
-	// }
+	validateInput := strings.TrimSpace(searchKey)
+	if validateInput == "" {
+		searchKey = "today"
+	}
+	if searchKey == "" {
+		searchKey = "today"
+	}
 	page := params.Get("page")
 	if page == "" {
 		page = "1"
@@ -101,7 +105,6 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	pageSize := 20
 	endpoint := fmt.Sprintf("https://newsapi.org/v2/everything?q=%s&pageSize=%d&page=%d&apiKey=%s&sortBy=publishedAt&language=en", url.QueryEscape(search.SearchKey), pageSize, search.NextPage, *apiKey)
 
-	fmt.Println("=====>", search)
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -119,7 +122,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	fmt.Println("=-=-=-=", search.Results.TotalResults)
+
 	search.TotalPages = int(math.Ceil(float64(search.Results.TotalResults / pageSize)))
 	if ok := !search.IsLastPage(); ok {
 		search.NextPage++
