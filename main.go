@@ -45,6 +45,27 @@ type Search struct {
 	Results    Results
 }
 
+func (a *Article) FormatPublishedDate() string {
+	year, month, day := a.PublishedAt.Date()
+	return fmt.Sprintf("%v %d, %d", month, day, year)
+}
+
+func (s *Search) IsLastPage() bool {
+	return s.NextPage >= s.TotalPages
+}
+
+func (s *Search) CurrentPage() int {
+	if s.NextPage == 1 {
+		return s.NextPage
+	}
+
+	return s.NextPage - 1
+}
+
+func (s *Search) PreviousPage() int {
+	return s.CurrentPage() - 1
+}
+
 func IndexHandler(w http.ResponseWriter, r *http.Request) {
 	tpl.Execute(w, nil)
 }
@@ -60,6 +81,9 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	fmt.Println("****", u.Query())
 	params := u.Query()
 	searchKey := params.Get("q")
+	// if searchKey == "" {
+	// 	searchKey = "today"
+	// }
 	page := params.Get("page")
 	if page == "" {
 		page = "1"
@@ -77,7 +101,7 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 	pageSize := 20
 	endpoint := fmt.Sprintf("https://newsapi.org/v2/everything?q=%s&pageSize=%d&page=%d&apiKey=%s&sortBy=publishedAt&language=en", url.QueryEscape(search.SearchKey), pageSize, search.NextPage, *apiKey)
 
-	fmt.Println("=====>", endpoint)
+	fmt.Println("=====>", search)
 	resp, err := http.Get(endpoint)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -95,8 +119,11 @@ func SearchHandler(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-
+	fmt.Println("=-=-=-=", search.Results.TotalResults)
 	search.TotalPages = int(math.Ceil(float64(search.Results.TotalResults / pageSize)))
+	if ok := !search.IsLastPage(); ok {
+		search.NextPage++
+	}
 	err = tpl.Execute(w, search)
 
 	if err != nil {
